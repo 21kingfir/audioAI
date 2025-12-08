@@ -8,7 +8,7 @@ function createdb() {
     `
     CREATE TABLE IF NOT EXISTS sessions (
         session_name TEXT,
-        session_id PRIMARY KEY AUTOINCREMENT,
+        audio_id PRIMARY KEY AUTOINCREMENT,
         started_at INT NOT NULL,
         ended_at INT,
         duration_seconds INT,
@@ -18,6 +18,7 @@ function createdb() {
         updated_at INT
     )`,
   ).run();
+  return db;
 }
 
 function addelementtodb(
@@ -33,7 +34,9 @@ function addelementtodb(
   const bytedfile = fs.readFileSync(filepath);
   const cbytedfile = zlib.gzipSync(bytedfile);
   const b64file = bytedfile.toString(`base64`);
-  const request = db.prepare(`
+  const request = db
+    .prepare(
+      `
         INSERT INTO sessions (
             session_name, 
             started_at, 
@@ -62,6 +65,20 @@ function addelementtodb(
       created_at,
       updated_at,
     );
+  return request.lastID;
 }
 
-module.exports = { createdb, addelementtodb }
+function getdecaudio(id, db) {
+  const result = db
+    .prepare(`SELECT audio_byted_content FROM sessions VALUES (?)`)
+    .run(id);
+  if (result) {
+    const unb64content = Buffer.from(result, "base64");
+    const unzipedcontent = zlib.gunzipSync(unb64content);
+    fs.writeFileSync(`../tempaudiofile/${id}.wav`, unzipedcontent);
+    const returnvar = `${id}.wav`;
+    return returnvar;
+  }
+}
+
+module.exports = { createdb, addelementtodb, getdecaudio };
